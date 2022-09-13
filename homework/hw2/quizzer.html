@@ -53,7 +53,7 @@
         // Updates quiz panel with new questions and saves the questions to localStorage
         function saveQuiz(){
             $('#question').each(function(){
-                $('#quiz-ol').append('<li>' + $(this).val() + '</li> <br> <input type="text" id="quiz-answer"/>');
+                $('#quiz-ol').append('<li>' + $(this).val() + '</li> <br> <input type="text" class="quiz-answer"/>');
             });
 
             localStorage.questionList = JSON.stringify(questionList);
