@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!-- 
+Name: Carl Lund
+Date: September 15, 2022
+ -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz 1</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    
+    <style>
+        #settings {
+            margin-top: 2em;
+            border: 1px solid gray;
+            padding: .5em 0 .5em .5em;
+        }
+
+        #settings h2 {
+            margin-top: 0;
+        }
+
+        .hidden {
+            display: none
+        }
+
+        h2 {
+            font-family: sans-serif;
+            font-weight: lighter;
+        }
+
+    </style>
+    <script>
+        /**
+         * Loads all content for any elements that have the 'content-wrapper'
+         * class.
+         */
+        function loadAll(){
+            $('.content-wrapper').each(function(i,elm){
+                loadContent(elm.getAttribute('id'));
+            });
+
+            loadSettings();
+        }
+    
+        /**
+         * If a key with the value of `id` exists in localStorage, its value is
+         * inserted into the first decendent with the class 'content' of the of
+         * the element that matches the id.
+         *
+         * @param {string} The id of the content to load.
+         */
+        function loadContent(id){
+            // TODO
+        }
+
+        /**
+         * Loads color settings from localStorage (if any have been saved).
+         */
+         function loadSettings(){
+            if(localStorage.pageColor !== undefined){
+                $('body').css('background-color', localStorage.pageColor);
+            }
+            if(localStorage.textColor !== undefined){
+                $('body').css('color', localStorage.textColor);
+            }
+        }
+
+        /**
+         * Saves the content associated with the given id to localStorage. 
+         * Specifically, it saves the text in the first decedent element with
+         * the calss `content` under the key `id` (whatever the value of `id` 
+         * is).
+         *
+         * @param {string} The id of the element wrapping the . This is used as
+         *                 the storage key in localStorage.
+         */
+        function saveContent(id) {
+            localStorage[id] = $(`#${id} .content`).html();
+        }
+
+        /**
+         * Updates and saves color settings to localStorage. These looks for
+         * input boxes with the ids 'text-color' and 'page-color'.
+         */
+        function updateSettings(){
+            var color = $('#page-color').val();
+            localStorage.pageColor = JSON.stringify(color);
+            localStorage.textColor = $('#text-color').val();
+            loadSettings();
+        }
+
+        /**
+         * Updates the view -- shows one of the views based on the URI
+         * hash. The section whose id matches the hash (e.g., #background) is
+         * displayed while all the others are hidden. If the hash is empty or 
+         * there is no hash, then the background view should be displayed.
+         */
+        function updateView(){
+            var id = windows.location.hash.match(/^#?([^?]*)/)[1];
+            console.log('Hash change:', id);
+            
+            // TODO
+        }
+
+        // Main.
+        $(document).ready(function(){
+            loadAll();
+
+            // Listeners for clicks on "save content" buttons.
+            $('.save').on('click', function(){
+                saveContent($(this).parents('.content-wrapper').attr('id'));
+            });
+
+            // Listeners for changes to content.
+            $(document).on('input', '.content.autosave', function(){
+                saveContent($(this).parents('.content-wrapper').attr('id'));
+            })
+
+            // Listener for clicks on the "save settings" button.
+            $(document).on('click', '#edit-page-colors', updateSettings);
+
+            // Listener for changes to the URI hash.
+            // TODO
+        });
+    </script>
+</head>
+<body>
+
+    <h1>Your bio</h1>
+
+    <div id="background" class="content-wrapper view">
+        <h2>Background</h2>
+        <div class="content" contenteditable="true">Put your bio here (your name, where you're from, etc.).</div>
+        <button class="save">Save changes</button>
+    </div>
+
+    <div id="interests" class="content-wrapper view">
+        <h2>Interests</h2>
+        <div class="content autosave" contenteditable="true">Talk about what your interests (sports, hobbies, etc.) here.</div>
+    </div>
+
+    <div id="prof-experience" class="content-wrapper view">
+        <h2>Professional experience</h2>
+        <div class="content autosave" contenteditable="true">Talk about your internships and other professional experiences here.</div>
+    </div>
+
+    <div id="settings">
+        <h2>Settings</h2>
+        Page background: <input type="color" id="page-color view"/> <br/>
+        Text color: <input type="color" id="text-color view"/> <br/>
+        <button id="edit-page-colors">Change page colors</button> 
+    </div>
+
+
+</body>
+</html>
