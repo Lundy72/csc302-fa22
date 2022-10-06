@@ -12,8 +12,9 @@
                 $responses[$i]["correct"] = true;
             }
         }
+        print json_encode($_POST["responses"]);
+    } else {
+        // SOME SORT OF ERROR HANDLING IF THERE'S NO RESPONSES KEY IN POST
     }
-
-    print json_encode($_POST["responses"]);
 
 ?>

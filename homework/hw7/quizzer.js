@@ -2,7 +2,7 @@ var questions = [];
 
 $.ajax ({
 
-    url: '/grade.php',
+    url: 'grade.php',
     method: 'post',
 
 });
