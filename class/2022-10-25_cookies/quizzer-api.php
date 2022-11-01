@@ -1,6 +1,5 @@
 <?php
 header('Content-type: application/json');
-session_start();
 
 // For debugging:
 error_reporting(E_ALL);
@@ -9,6 +8,8 @@ ini_set('display_errors', '1');
 // TODO Change this as needed. SQLite will look for a file with this name, or
 // create one if it can't find it.
 $dbName = 'quizzer.db';
+
+session_start();
 
 // Leave this alone. It checks if you have a directory named www-data in
 // you home directory (on a *nix server). If so, the database file is
@@ -32,10 +33,10 @@ createTables();
 
 $supportedActions = [
     'addUser', 'addQuiz', 'addQuizItem', 'removeQuizItem', 
-    'updateQuizItem', 'submitResponses', 'signIn', 'signOut'
+    'updateQuizItem', 'submitResponses', 'signin', 'signout'
 ];
 
-// Handle incoming requests (routes).
+// Handle incoming requests.
 if(array_key_exists('action', $_POST)){
     $action = $_POST['action'];
     // if($action == 'addUser'){
@@ -163,6 +164,53 @@ function authenticate($username, $password){
 }
 
 /**
+ * Checks if the user is signed in; if not, emits a 403 error.
+ */
+function mustBeSignedIn(){
+    if(!(key_exists('signedin', $_SESSION) && $_SESSION['signedin'])){
+        error("You must be signed in to perform that action.", 403);
+    }
+}
+
+/**
+ * Log a user in. Requires the parameters:
+ *  - username
+ *  - password
+ * 
+ * @param data An JSON object with these fields:
+ *               - success -- whether everything was successful or not
+ *               - error -- the error encountered, if any (only if success is false)
+ */
+function signin($data){
+    if(authenticate($data['username'], $data['password'])){
+        $_SESSION['signedin'] = true;
+        $_SESSION['user-id'] = getUserByUsername($data['username'])['id'];
+        $_SESSION['username'] = $data['username']; 
+
+        die(json_encode([
+            'success' => true
+        ]));
+    } else {
+        error('Username or password not found.', 401);
+    }
+}
+
+/**
+ * Logs the user out if they are logged in.
+ * 
+ * @param data An JSON object with these fields:
+ *               - success -- whether everything was successful or not
+ *               - error -- the error encountered, if any (only if success is false)
+ */
+function signout($data){
+    session_destroy();
+    die(json_encode([
+        'success' => true
+    ]));
+}
+
+
+/**
  * Adds a user to the database. Requires the parameters:
  *  - username
  * 
@@ -212,16 +260,17 @@ function addUser($data){
 function addQuiz($data){
     global $dbh;
 
-    authenticate($data['username'], $data['password']);
+    // authenticate($data['username'], $data['password']);
+    mustBeSignedIn();
 
     // Look up userid first.
-    $user = getUserByUsername($data['username']);
-
+    #$user = getUserByUsername($data['username']);
+    
     try {
         $statement = $dbh->prepare('insert into Quizzes'. 
             '(authorId, name) values (:authorId, :name)');
         $statement->execute([
-            ':authorId' => $user['id'], 
+            ':authorId' => $_SESSION['user-id'], 
             ':name' => $data['name']
         ]);
 
@@ -253,7 +302,8 @@ function addQuiz($data){
 function addQuizItem($data){
     global $dbh;
 
-    authenticate($data['username'], $data['password']);
+    // authenticate($data['username'], $data['password']);
+    mustBeSignedIn();
 
     try {
         $statement = $dbh->prepare('insert into QuizItems'. 
@@ -291,7 +341,8 @@ function addQuizItem($data){
 function removeQuizItem($data){
     global $dbh;
 
-    authenticate($data['username'], $data['password']);
+    // authenticate($data['username'], $data['password']);
+    mustBeSignedIn();
 
     try {
         $statement = $dbh->prepare('delete from QuizItems '. 
@@ -323,7 +374,8 @@ function removeQuizItem($data){
 function updateQuizItem($data){
     global $dbh;
 
-    authenticate($data['username'], $data['password']);
+    // authenticate($data['username'], $data['password']);
+    mustBeSignedIn();
 
     try {
         $statement = $dbh->prepare('update QuizItems set '. 
@@ -363,9 +415,10 @@ function updateQuizItem($data){
 function submitResponses($data){
     global $dbh;
 
-    authenticate($data['username'], $data['password']);
+    // authenticate($data['username'], $data['password']);
+    mustBeSignedIn();
 
-    $user = getUserByUsername($data['submitterUsername']);
+    //$user = getUserByUsername($data['submitterUsername']);
 
     try {
         // Strategy: 
@@ -412,7 +465,7 @@ function submitResponses($data){
             ':quizId, :submitterId, :numCorrect, :score)');
         $statement->execute([
             ':quizId' => $data['quizId'],
-            ':submitterId' => $user['id'],
+            ':submitterId' => $_SESSION['user-id'],
             ':numCorrect' => $numCorrect,
             ':score' => ($numCorrect/count($responses))
         ]);
@@ -452,50 +505,6 @@ function submitResponses($data){
         die(json_encode([
             'success' => false, 
             'error' => "There was an error submitting the responses: $e"
-        ]));
-    }
-}
-
-/**
- * Signs in a user. Requires the parameters:
- *  - username
- *  - password
- * 
- * @param data An JSON object with these fields:
- *               - success -- whether everything was successful or not
- *               - error -- the error encountered, if any (only if success is false)
- */
-function signIn($data){
-
-    if (authenticate($data["username"], $data["password"])) {
-        $_SESSION['signed-in'] = true;
-        $_SESSION['user-id'] = getUserByUsername($data['username'])['id'];
-        $_SESSION['username'] = $data['username'];
-
-        die(json_encode(['success' => true]));
-    } else {
-        error('Username or password not found', 401);
-    }
-}
-
-/**
- * Signs the user out. Requires no parameters.
- * 
- * @param data An JSON object with these fields:
- *               - success -- whether everything was successful or not
- *               - error -- the error encountered, if any (only if success is false)
- */
-function signOut(){
-
-    try {
-        session_destroy();
-        die(json_encode(['success' => true]));
-
-    } catch(PDOException $e){
-        http_response_code(400);
-        die(json_encode([
-            'success' => false, 
-            'error' => "There was an error signing out: $e"
         ]));
     }
 }

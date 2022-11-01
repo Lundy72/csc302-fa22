@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<!--
+    File: index.html
+    Name: Carl Lund
+    Date: 10-27-22
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CalPal</title>
+
+    <style>
+
+        .month-nav {
+            -moz-user-select: none;
+            -webkit-user-select: none;
+
+            cursor: pointer;
+            border: 1px solid steelblue;
+            border-radius: .2em;
+            padding-left: .5em;
+            padding-right: .5em;
+        }
+        .month-nav:hover {
+            background-color: steelblue;
+            color: white;
+        }
+
+        .month-nav:active {
+            background-color: lightsteelblue;
+            color: white;
+        }
+
+        .calendar-event {
+            border: 1px solid steelblue;
+            border-radius: .2em;
+            padding: .5em;
+
+            width: 350px;
+
+            margin-top: 1em;
+            margin-left: 1em;
+        }
+
+        .name {
+            margin-top: 0;
+        }
+
+        .notes:focus, .name:focus {
+            border: 1px solid lightsteelblue;
+        }
+
+        .save {
+            display: none;
+        }
+
+        #templates {
+            display: none;
+        }
+
+        .calendar-event.unsaved {
+            border-color: red; 
+        }
+
+        #sign-up, #sign-in,
+        body.signed-out .signed-in,
+        body.signed-in .signed-out {
+            display: none;
+        }
+
+        body.sign-in #sign-in,
+        body.sign-up #sign-up,
+        body.signed-out .sign-out,
+        body.signed-in .sign-in {
+            display: block;
+        }
+
+        .welcome {
+            font-size: 120%;
+            font-weight: bolder;
+        }
+
+
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <script>
+        var curMonth = 0;
+        var curYear;
+        var months = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+
+        /**
+         * Adds a new event at the beginning of the current month; it's not
+         * saved until the "Save changes" button is pressed.
+         */
+        function addCalendarEvent(){
+            var $newEvent = $('#templates .calendar-event').clone();
+            var date = new Date(curYear, curMonth, 1, 9, 0, 0);
+            $('.no-events').hide();
+            $('#events-list').prepend($newEvent);
+            $newEvent.find('.start-date').val(date.toISOString().substr(0, 10));
+            $newEvent.find('.start-time').val(date.toTimeString().substr(0, 8));
+            
+            $newEvent.find('.end-date').val(date.toISOString().substr(0, 10));
+            $newEvent.find('.end-time').val(date.toTimeString().substr(0,8));
+            $newEvent.find('.save').show();
+            $newEvent.addClass('unsaved');
+        }
+
+        /**
+         * Shows a "save" button on the calendar event that was edited and
+         * triggered this function; also adds the 'unsaved' class so the
+         * user can see there are unsaved changes.
+         */
+        function showSaveButton(){
+            var $calendarEvent = $(this);
+            $calendarEvent.find('.save').show();
+            $calendarEvent.addClass('unsaved');
+        }
+
+        /**
+         * Updates a calendar event; if the new start/end times move it outside 
+         * of the shown month, it is removed from the UI. If the event is new
+         * (this is the first save), it is submitted to the server to be 
+         * saved and the returned id is added to the HTML element.
+         */
+        function updateCalendarEvent(){
+            var $calendarEvent = $(this).parents('.calendar-event');
+            var startDateTime = new Date(
+                $calendarEvent.find('.start-date').val() +' '+
+                $calendarEvent.find('.start-time').val());
+            var endDateTime = new Date(
+                $calendarEvent.find('.end-date').val() +' '+
+                $calendarEvent.find('.end-time').val());
+
+            var data = {
+                name:  $calendarEvent.find('.name').html(),
+                start: startDateTime.toISOString(), 
+                end:   endDateTime.toISOString(), 
+                notes: $calendarEvent.find('.notes').html()
+            };
+
+            var beginningOfMonth = new Date(curYear, curMonth, 1);
+            var endOfMonth = new Date(curYear, curMonth, 31, 23, 59, 59);
+            // Remove is end comes before beginning of the month or start comes
+            // after.
+            var removeOnSuccessfulUpdate = 
+                (new Date(data.end)) < beginningOfMonth || 
+                (new Date(data.start)) > endOfMonth;
+
+            // If this is a new element (has no id attribute), send it
+            // to the server and save the id that comes back.
+            if($calendarEvent.attr('id') === undefined){
+ 
+                // Update the action.
+                data.action = 'add-event';
+
+                // Send the data to the server.
+                $.ajax({
+                    url: 'calendar.php',
+                    data: data,
+                    method: 'post',
+                    success: function(data){
+                        if(data.success){
+                            console.log('data saved!');
+
+                            // Set the id.
+                            $calendarEvent.attr('id', data.id);
+
+                            $calendarEvent.removeClass('unsaved');
+
+                            // If the event occurs outside of this month,
+                            // remove it from the UI.
+                            if(removeOnSuccessfulUpdate){
+                                $calendarEvent.remove();
+
+                                // If this was the last element, sho the "No events"
+                                // message.
+                                if($('#events-list .calendar-event').length === 0){
+                                    $('.no-events').show();
+                                }
+                            }
+                        } else {
+                            console.log('Error saving: '+ data.error);
+                            alert('This event could not be saved; try saving again.');
+                        }
+                    },
+                    error: function(jqXHR, status, error){
+                        console.log('Error communicating with server: '+ error);
+                        alert('This event could not be saved; try saving again.');
+                    }
+                });
+
+            // Otherwise, update the element.
+            } else {
+
+                // Set the action and id.
+                data.action = 'update-event';
+                // Question 11
+                $calendarEvent.attr('id', data.id);
+
+                $.ajax({
+                    url: 'calendar.php',
+                    data: data,
+                    method: 'post',
+                    success: function(data){
+                        if(data.success){
+                            console.log('data saved!');
+
+
+                            $calendarEvent.removeClass('unsaved');
+
+                            // If the event occurs outside of this month,
+                            // remove it from the UI.
+                            if(removeOnSuccessfulUpdate){
+                                $calendarEvent.remove();
+
+                                // If this was the last element, show the "No events"
+                                // message.
+                                if($('#events-list .calendar-event').length === 0){
+                                    $('.no-events').show();
+                                }
+                            }
+                        } else {
+                            console.log('Error saving: '+ data.error);
+                            alert('This event could not be saved; try saving again.');
+                        }
+                    },
+                    error: function(jqXHR, status, error){
+                        console.log('Error communicating with server: '+ error);
+                        alert('This event could not be saved; try saving again.');
+                    }
+                });
+            }
+        }
+
+        /**
+         * Removes a calendar event from the UI as well as the server.
+         */
+        function deleteCalendarEvent(){
+            var $calendarEvent = $(this).parents('.calendar-event');
+            console.log($calendarEvent);
+
+            // Events without ids are unsaved and can't be deleted from the
+            // server, so just get rid of them in the UI.
+            if($calendarEvent.attr('id') === undefined){
+                $calendarEvent.remove();
+                if($('#events-list .calendar-event').length === 0){
+                    $('.no-events').show();
+                }
+                return;
+            }
+
+            var data = {
+                    id: $calendarEvent.attr('id'),
+                    action: 'remove-event'
+                };
+            console.log('data:', data);
+            // Otherwise, delete from the server and only delete from the UI
+            // when we hear back that the removal was successful.
+            $.ajax({
+                url: 'calendar.php',
+                data: data,
+                method: 'post',
+                success: function(data){
+                    if(data.success){
+                        console.log('event removed!');
+
+                        // Remove the event.
+                        $calendarEvent.remove();
+
+                        // If this was the last element, sho the "No events"
+                        // message.
+                        if($('#events-list .calendar-event').length === 0){
+                            $('.no-events').show();
+                        }
+                    } else {
+                        console.log('Error deleting: '+ data.error);
+                        alert('This event could not be removed; try saving again.');
+                    }
+                },
+                error: function(jqXHR, status, error){
+                    console.log('Error communicating with server: '+ error);
+                    alert('This event could not be removed; try saving again.');
+                }
+            });
+        }
+
+        /**
+         * Changes the month of events being viewed, forwards or backwards, then
+         * populates the UI with events stored on the server for that month.
+         */
+        function changeMonth(){
+            var $button = $(this);
+
+            // Advance one month.
+            if($button.attr('id') === 'next-month'){
+                if(curMonth === 11){
+                    curYear++;
+                }
+                // Change month.
+                curMonth = (curMonth+1) % 12;
+
+            // Reverse one month.
+            } else {
+                if(curMonth === 0){
+                    curYear--;
+                    curMonth = 11;
+                } else {
+                    curMonth--;
+                }
+            }
+
+            populateEventsForCurrentMonth();
+        }
+
+        /**
+         * Fetches all events for the current month from the server and puts
+         * them in the UI.
+         */
+        function populateEventsForCurrentMonth(){
+            // Display the month.
+            $('#month').html(`${months[curMonth]} ${curYear}`);
+
+            // Clear events for the current month.
+            $('#events-list .calendar-event').remove();
+            $('.no-events').show();
+
+            // Get data from server for new month.
+            $.ajax({
+                url: 'calendar.php',
+                data: {
+                    'range-start': (new Date(curYear, curMonth, 1)).toISOString(),
+                    'range-end': (new Date(curYear, curMonth+1, 0, 23, 59, 59)).toISOString(),
+                    action: 'get-all-events'
+                },
+                method: 'post',
+                success: function(data){
+                    if(data.success){
+                        console.log('events retrieved!', data);
+
+                        if(data.data.length > 0){
+                            $('.no-events').hide();
+                        }
+
+                        // Populate new data.
+                        for(var i = 0; i < data.data.length; i++){
+                            var event = data.data[i];
+                            var startDateTime = new Date(event.start);
+                            var endDateTime = new Date(event.end);
+                            var $newEvent = $('#templates .calendar-event').clone();
+
+                            $('#events-list').append($newEvent);
+                            $newEvent.find('.name').html(event.name);
+
+                            $newEvent.find('.start-date').val(startDateTime.toISOString().substr(0, 10));
+                            $newEvent.find('.start-time').val(startDateTime.toTimeString().substr(0, 8));
+                            
+                            $newEvent.find('.end-date').val(endDateTime.toISOString().substr(0, 10));
+                            $newEvent.find('.end-time').val(endDateTime.toTimeString().substr(0,8));
+
+                            $newEvent.find('.notes').html(event.notes);
+
+                            $newEvent.attr('id', event.id);
+
+                        }
+                        
+                        // Renable buttons.
+                        $('.month-nav').prop('disabled', false);
+
+                    } else {
+                        console.log('ERROR retrieving data: '+ data.error);
+                            alert(`Events for ${months[curMonth]} could not be `+ 
+                                  'loaded; please try reloading the page.');
+                    }
+                },
+                error: function(jqXHR, status, error){
+                    console.log('ERROR communicating with server: '+ error);
+                    alert(`Events for ${months[curMonth]} could not be `+ 
+                                  'loaded; please try reloading the page.');
+                }
+            });
+        }
+
+        // Checks if the user is signed in and changes the interface a bit if
+        // they are.
+        function checkIfSignedIn(){
+            $.ajax({
+                url: 'calendar.php',
+                data: {
+                    action: 'signin-status'
+                },
+                method: 'post',
+                success: function(data){
+                    if(data['signed-in']){
+                        $('#username').html(data['username']);
+                        $('body').removeClass('signed-out').addClass('signed-in')
+                    }
+                },
+                error: function(jqXHR, status, error){
+                    console.log('ERROR communicating with server: '+ error);
+                }
+            });
+        }
+
+        // Signs the user up.
+        function signUp(event){
+            $.ajax({
+                url: 'calendar.php',
+                data: {
+                    action: 'sign-up',
+                    username: this['username'].value,
+                    password: this['password'].value
+                },
+                method: 'post',
+                success: function(data){
+                    if(data['success']){
+                        alert('You\'re now signed up; please sign in.');
+                        $('body').removeClass('sign-up').addClass('sign-in');
+                    } else {
+                    alert('Sorry, we couldn\'t sign you in :-(: '+
+                        data['error']);
+
+                    }
+                },
+                error: function(jqXHR, status, error){
+                    console.log('ERROR signing up:',  jqXHR);
+                    alert('Sorry, we couldn\'t sign you in :-(');
+                }
+            });
+            
+            event.preventDefault();
+        }
+
+        // Signs the user in.
+        function signIn(event){
+            var username = this['username'].value;
+            $.ajax({
+                url: 'calendar.php',
+                data: {
+                    action: 'sign-in',
+                    username: username,
+                    password: this['password'].value
+                },
+                method: 'post',
+                success: function(data){
+                    if(data['success']){
+                        $('#username').html(username);
+                        $('body').removeClass('signed-out').addClass('signed-in')
+                        populateEventsForCurrentMonth();
+                    }
+                },
+                error: function(jqXHR, status, error){
+                    console.log('ERROR signing in:',  jqXHR);
+                    alert('Sorry, we couldn\'t sign you in :-(');
+                }
+            });
+
+            event.preventDefault();
+        }
+
+        // Signs the user out.
+        function signOut(event){
+            $.ajax({
+                url: 'calendar.php',
+                data: {
+                    action: 'sign-out'
+                },
+                method: 'post',
+                success: function(data){
+                    if(data['success']){
+                        $('#username').html('');
+                        $('body').addClass('signed-out').removeClass('signed-in');
+                        populateEventsForCurrentMonth();
+                    }
+                },
+                error: function(jqXHR, status, error){
+                    console.log('ERROR signing out:',  jqXHR);
+                    alert('Sorry, we couldn\'t sign you out :-(');
+                }
+            });
+
+            event.preventDefault();
+        }
+
+        $(document).ready(function(){
+            // Listener for "add event".
+            $(document).on('click', '#add-event', addCalendarEvent);
+
+            // Listener for input events on the calendar entries (add a "save" 
+            // button)
+            $(document).on('input', '.calendar-event', showSaveButton);
+
+            // Listener for "save" events on calendar entries
+            $(document).on('click', '.save', updateCalendarEvent);
+
+            // Listener for "delete event"
+            $(document).on('click', '.delete', deleteCalendarEvent);
+
+            // Listener for ".month" presses
+            $(document).on('click', '.month-nav', changeMonth);
+
+            // Listener for sign in/sign out actions.
+            $(document).on('click', '.signin-up-link', function(event){
+                $('body').toggleClass($(this).data('type'));
+            });
+
+            $(document).on('submit', '#sign-up', signUp);
+            $(document).on('submit', '#sign-in', signIn);
+            $(document).on('click', '#sign-out', signOut);
+
+            checkIfSignedIn();
+
+            // Get current month and year and show that.
+            curMonth = (new Date()).getMonth();
+            curYear = (new Date()).getFullYear();
+            populateEventsForCurrentMonth();
+
+
+        });
+
+    </script>
+</head>
+<body class="signed-out">
+
+    <h1>CalPal</h1>
+
+    <div class="signed-out">
+        <a href="#" class="signin-up-link" data-type="sign-up">Sign up</a> | 
+        <a href="#" class="signin-up-link" data-type="sign-in">Sign in</a>
+        <form id="sign-up">
+            <h2>Sign up</h2>
+            Username: <input type="text" name="username"/> <br/>
+            Password: <input type="password" name="password"/><br/>
+            <input type="submit" value="Sign up"/>
+        </form>
+        <form id="sign-in">
+            <h2>Sign in</h2>
+            Username: <input type="text" name="username"/> <br/>
+            Password: <input type="password" name="password"/><br/>
+            <input type="submit" value="Sign in"/>
+        </form>
+    </div>
+    <span class="signed-in">
+        <span class="welcome">Welcome, <span id="username"></span>!</span>
+        (<a href="#" id="sign-out">Sign out</a>)
+    </span>
+
+    <h2><span id="prev-month" class="month-nav">&lt;</span> 
+        <span id="month">January</span> 
+        <span id="next-month" class="month-nav">&gt;</span>
+    </h2>
+    <button id="add-event">Add event</button>
+
+    <div id="events-list">
+        <span class="no-events">No events...</span>
+    </div>
+
+
+    <!-- 
+        This hidden area is for html blocks that we can clone and insert 
+        somewhere else.
+    -->
+    <div id="templates">
+        <div class="calendar-event">
+            <h3 class="name" contenteditable="true">Click here and name your event</h3>
+            Start: <input type="date" class="start-date"/><input type="time" class="start-time"><br/>
+            End: <input type="date" class="end-date"/><input type="time" class="end-time"><br/>
+            <div class="notes" contenteditable="true">
+                Click here and add any notes...</div>
+
+            <button class="save">Save</button> <button class="delete">Delete</button>
+        </div>
+    </div>
+</body>
+</html>
