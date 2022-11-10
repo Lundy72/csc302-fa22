@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizzer Signin</title>
+
+    <style>
+        .error {
+            color: red;
+        }
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <script>
+        var username, userURI;
+        $(document).ready(function(){
+            // Redirect the user to sign in if they aren't already signed in.
+            if(localStorage.getItem('username') === undefined){
+                window.location.href = 'signin.html';
+            }
+            username = localStorage.getItem('username');
+            userURI = localStorage.getItem('userURI');
+        });
+
+    
+    </script>
+</head>
+<body>
+    <h1>Quizzer</h1>
+    <p>Welcome, <span class="username"></span>!</p>
+
+    <h2>My quizzes</h2>
+    <p>Click on one of these to edit it, or make a new one.</p>
+    <ul class="my-quizzes">
+        <li><button class="new-quiz">Make a new quiz</button></li>
+    </ul>
+
+    <h2>All Quizzes</h2>
+    <p>Click on one of these quizzes to take and submit it.</p>
+    <ul class="all-quizzes">
+        <li><em>none yet...</em></li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizzer Signin</title>
+
+    <style>
+        .error {
+            color: red;
+        }
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <script>
+        $(document).ready(function(){
+            $(document).on('submit', '#signin-form', function(event){
+                var serverData = {
+                    'jwt': jwt,
+                    'username': this['username'].value,
+                    'password': this['password'].value
+                };
+
+                $.ajax('/sessions', {
+                    method: 'POST',
+                    data: serverData,
+                    dataType: 'json',
+                    success: function(data, status, xhr){
+                        // Save that the user is logged in.
+                        localStorage.setItem('username', data['username']);
+                        localStorage.setItem('userURI', data['userURI']);
+                        window.location.href = 'quizzer.html';
+
+                        sessionStorage.jwt = data.jwt;
+                        jwt = data.jwt;
+                    },
+                    error: function(xhr, code, message){
+                        alert(`Error: ${code} ${message}: ${xhr.responseJSON.error}`);
+                    }
+                })
+                event.preventDefault();
+            });
+
+        });
+    </script>
+</head>
+<body>
+    <h1>Quizzer Signin</h1>
+    <p>Don't have an account yet? <a href="signup.html">Sign up for one here</a>!</p>
+
+    <form id="signin-form">
+        Username: <input type="text" name="username"/><br/>
+        Password: <input type="password" name="password"/><br/>
+        <input type="submit" value="Signin"/>
+    </form>
+</body>
+</html>

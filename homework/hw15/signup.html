@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quizzer Signup</title>
+
+    <style>
+        .error {
+            color: red;
+        }
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <script>
+        $(document).ready(function(){
+            $('#password-mismatch-error').hide()
+            $(document).on('submit', '#signup-form', function(event){
+                var serverData = {
+                    'username': this['username'].value,
+                    'password': this['password'].value
+                };
+
+                console.log(serverData);
+
+                $('#password-mismatch-error').hide()
+                if(this['password'].value !== this['password2'].value){
+                    $('#password-mismatch-error').show();
+                    event.preventDefault();
+                    return;
+                }
+
+                $.ajax('/users', {
+                    method: 'POST',
+                    data: serverData,
+                    success: function(responseData){
+                        window.location.href = 'signin.html';
+                    },
+                    error: function(xhr, code, message){
+                        alert(`Error: ${code} ${message}: ${xhr.responseJSON.error}`);
+                    }
+                })
+                event.preventDefault();
+            });
+
+        });
+    </script>
+</head>
+<body>
+    <h1>Quizzer Signup</h1>
+    <p>Already have an account? <a href="signin.html">Sign in here</a>!</p>
+
+    <form id="signup-form">
+        Username: <input type="text" name="username"/><br/>
+        Password: <input type="password" name="password"/><br/>
+        <div id="password-mismatch-error" class="error">Oh no, you passwords don't match!</div>
+        Password (again): <input type="password" name="password2"/><br/>
+        <input type="submit" value="Signup!"/>
+    </form>
+</body>
+</html>
